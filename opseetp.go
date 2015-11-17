@@ -155,7 +155,7 @@ func serverError(rw http.ResponseWriter, req *http.Request, status int, err erro
 	log.WithError(err).WithField("request", *req).WithError(err).Error("error")
 
 	var message string
-	if status == 0 {
+	if status == 0 || status == http.StatusInternalServerError {
 		message = "An unexpeced error happened."
 	} else {
 		message = err.Error()
