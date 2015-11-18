@@ -11,6 +11,10 @@ import (
 	"strings"
 )
 
+type AuthorizationValidator interface {
+	Validate() error
+}
+
 func AuthorizationDecodeFunc(tokenKey int, tokenUnmarshaler interface{}) DecodeFunc {
 	return func(ctx context.Context, rw http.ResponseWriter, r *http.Request, p httprouter.Params) (context.Context, int, error) {
 		header := r.Header.Get("authorization")
@@ -43,10 +47,15 @@ func decodeBasic(ctx context.Context, token *string, tokenKey int, tokenType int
 		return ctx, http.StatusUnauthorized, fmt.Errorf("Authorization token decode error.")
 	}
 
-	unmarshaler := reflect.New(reflect.TypeOf(tokenType)).Interface()
+	unmarshaler := reflect.New(reflect.TypeOf(tokenType)).Interface().(AuthorizationValidator)
 	err = json.Unmarshal(jsonblob, unmarshaler)
 	if err != nil {
 		return ctx, http.StatusUnauthorized, fmt.Errorf("authorization token unmarshal error.")
+	}
+
+	err = unmarshaler.Validate()
+	if err != nil {
+		return ctx, http.StatusUnauthorized, err
 	}
 
 	return context.WithValue(ctx, tokenKey, unmarshaler), 0, nil

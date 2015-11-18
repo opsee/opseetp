@@ -24,6 +24,14 @@ func (rv *testRequestValidator) Validate() error {
 	return fmt.Errorf("count is not 1")
 }
 
+func (u *user) Validate() error {
+	if u.Id == 1 {
+		return nil
+	}
+
+	return fmt.Errorf("user not authorized")
+}
+
 func TestCORS(t *testing.T) {
 	router := NewHTTPRouter(context.Background())
 	corsDecoder := CORSRegexpDecodeFunc(
@@ -90,6 +98,19 @@ func TestAuthorization(t *testing.T) {
 	}
 	assert.Equal(t, u.Id, 1)
 	assert.Equal(t, u.Email, "cliff@leaninto.it")
+
+	req, err = http.NewRequest("GET", "http://potata.opsee/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	token = base64.StdEncoding.EncodeToString([]byte(`{"id": 2, "email": "cliff@leaninto.it"}`))
+	req.Header.Set("Authorization", fmt.Sprintf("Basic %s", token))
+
+	rw = httptest.NewRecorder()
+	router.ServeHTTP(rw, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rw.Code)
 }
 
 func TestRequest(t *testing.T) {
