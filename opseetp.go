@@ -70,6 +70,10 @@ func (r *Router) Handle(method, path string, decoders []DecodeFunc, handler Hand
 	r.router.Handle(method, path, r.wrapHandler(decoders, handler))
 }
 
+func (r *Router) Handler(method, path string, handler http.Handler) {
+	r.router.Handler(method, path, handler)
+}
+
 func (r *Router) Encoder(contentType string, encodeFunc EncodeFunc) {
 	r.encoderMut.Lock()
 	defer r.encoderMut.Unlock()
