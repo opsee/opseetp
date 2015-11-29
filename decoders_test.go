@@ -13,15 +13,18 @@ import (
 )
 
 type testRequestValidator struct {
-	Count int `json:"count"`
+	Count      int `json:"count"`
+	Int32Slice []int32
+	StrSlice   []string `json:"cool_string_slice"`
+	Name       string   `json:",omitempty"`
 }
 
 func (rv *testRequestValidator) Validate() error {
-	if rv.Count == 1 {
-		return nil
+	if rv.Count == 777 {
+		return fmt.Errorf("count is 777")
 	}
 
-	return fmt.Errorf("count is not 1")
+	return nil
 }
 
 func (u *user) Validate() error {
@@ -122,8 +125,11 @@ func TestRequest(t *testing.T) {
 	router.Handle("GET", "/", []DecodeFunc{requestDecoder}, func(ctx context.Context) (interface{}, int, error) {
 		return ctx.Value(requestKey), http.StatusOK, nil
 	})
+	router.Handle("PUT", "/", []DecodeFunc{requestDecoder}, func(ctx context.Context) (interface{}, int, error) {
+		return ctx.Value(requestKey), http.StatusOK, nil
+	})
 
-	req, err := http.NewRequest("GET", "http://potata.opsee/", bytes.NewBufferString(`{"count": 1}`))
+	req, err := http.NewRequest("PUT", "http://potata.opsee/", bytes.NewBufferString(`{"count": 1}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +146,7 @@ func TestRequest(t *testing.T) {
 	}
 	assert.Equal(t, 1, rv.Count)
 
-	req, err = http.NewRequest("GET", "http://potata.opsee/", bytes.NewBufferString(`{"count": 2}`))
+	req, err = http.NewRequest("PUT", "http://potata.opsee/", bytes.NewBufferString(`{"count": 777}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,4 +155,34 @@ func TestRequest(t *testing.T) {
 	router.ServeHTTP(rw, req)
 
 	assert.Equal(t, http.StatusBadRequest, rw.Code)
+
+	req, err = http.NewRequest("GET", "http://potata.opsee/?count=777", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rw = httptest.NewRecorder()
+	router.ServeHTTP(rw, req)
+
+	assert.Equal(t, http.StatusBadRequest, rw.Code)
+
+	req, err = http.NewRequest("GET", "http://potata.opsee/?count=222&Name=rip&cool_string_slice=1,2,egg&Int32Slice=9,8,7", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rw = httptest.NewRecorder()
+	router.ServeHTTP(rw, req)
+
+	assert.Equal(t, http.StatusOK, rw.Code)
+
+	rv = &testRequestValidator{}
+	err = json.NewDecoder(rw.Body).Decode(rv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, 222, rv.Count)
+	assert.Equal(t, "rip", rv.Name)
+	assert.Equal(t, []int32{int32(9), int32(8), int32(7)}, rv.Int32Slice)
+	assert.Equal(t, []string{"1", "2", "egg"}, rv.StrSlice)
 }
